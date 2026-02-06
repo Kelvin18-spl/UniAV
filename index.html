@@ -16,9 +16,7 @@
     .data-font { font-family: 'ui-monospace', monospace; }
     #authOverlay { display: flex; }
     .hidden { display: none !important; }
-    
-    /* Smooth scaling for inputs */
-    input { font-size: 16px !important; } /* Prevents iOS auto-zoom on focus */
+    input { font-size: 16px !important; }
   </style>
 </head>
 <body class="text-slate-300 font-sans antialiased">
@@ -74,9 +72,7 @@
 
     <div id="resultContainer" class="hidden">
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 md:gap-8">
-        
         <div id="specContent" class="lg:col-span-3 glass-panel rounded-3xl p-6 md:p-10 border-t border-indigo-500/30 shadow-2xl"></div>
-        
         <div class="space-y-6">
             <div class="glass-panel p-6 rounded-2xl border-l-4 border-indigo-500 bg-slate-900/20">
                 <h4 class="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-3">Diagnostic Advisor</h4>
@@ -86,6 +82,9 @@
                     <span id="geminiBadge" class="hidden px-3 py-1 rounded text-[8px] font-black uppercase text-white tracking-widest bg-fuchsia-600 text-center">Gemini Analysis Active</span>
                 </div>
             </div>
+            <button onclick="toggleModal(true)" class="w-full py-3 border border-red-500/30 text-red-400 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500/10 transition-all">
+                <i class="fas fa-exclamation-triangle mr-2"></i> Report Data Mismatch
+            </button>
         </div>
       </div>
     </div>
@@ -96,8 +95,24 @@
     </div>
   </div>
 
+  <div id="calibrationModal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[200] items-center justify-center p-4">
+    <div class="glass-panel max-w-lg w-full rounded-3xl overflow-hidden border-red-500/50 shadow-2xl">
+        <div class="bg-red-600 p-6 text-center">
+            <h3 class="text-white font-black uppercase italic tracking-tighter text-xl">Technical Correction</h3>
+        </div>
+        <div class="p-8 space-y-6">
+            <textarea id="correctionInput" placeholder="Enter verified technical details..." class="w-full h-40 bg-slate-900 border border-slate-800 rounded-xl p-4 text-white text-sm outline-none focus:border-red-500 transition-all"></textarea>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="copyCorrection()" class="py-3 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase hover:bg-slate-700 transition-all">Copy Text</button>
+                <button onclick="sendDispatch()" class="py-3 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-red-500 transition-all">Send Email</button>
+            </div>
+            <button onclick="toggleModal(false)" class="w-full text-[9px] text-slate-500 font-bold uppercase tracking-widest hover:text-white">Cancel</button>
+        </div>
+    </div>
+  </div>
+
   <script>
-    // --- FIREBASE CONFIG (SAME AS BEFORE) ---
+    // --- FIREBASE & GLOBALS ---
     const firebaseConfig = {
         apiKey: "AIzaSyC3SkQPM47ei4wzSzqLr1H2-huAAgurQK4",
         authDomain: "av-info-finder.firebaseapp.com",
@@ -113,9 +128,39 @@
     const db = firebase.firestore();
 
     let projectorData = []; 
+    let currentModelName = "";
+    let currentThrowRatio = ""; 
     let searchTimeout;
     let isLoginMode = true;
 
+    // --- MODAL & LENS LOGIC ---
+    window.toggleModal = (show) => {
+        const modal = document.getElementById('calibrationModal');
+        modal.classList.toggle('hidden', !show);
+        modal.classList.toggle('flex', show);
+    };
+
+    window.copyCorrection = () => {
+        const val = document.getElementById('correctionInput').value;
+        navigator.clipboard.writeText(`Correction for ${currentModelName}: ${val}`);
+        alert("Data copied to clipboard.");
+    };
+
+    window.sendDispatch = () => {
+        const val = document.getElementById('correctionInput').value;
+        const subject = encodeURIComponent(`UniAV Correction: ${currentModelName}`);
+        const body = encodeURIComponent(`Model: ${currentModelName}\nVerified Details:\n\n${val}`);
+        window.location.href = `mailto:kelvin.cheng@bcu.ac.uk?subject=${subject}&body=${body}`;
+    };
+
+    window.calc = function(dist) {
+        const res = document.getElementById('lensResults');
+        const rMatch = currentThrowRatio.match(/(\d+\.?\d*)/);
+        if (!rMatch || !dist) return;
+        res.innerHTML = `${Math.round((parseFloat(dist) / parseFloat(rMatch[0])) * 1.15 * 39.37)}" DIAG`;
+    }
+
+    // --- AUTH ---
     function toggleAuthMode() {
         isLoginMode = !isLoginMode;
         document.getElementById('registerFields').classList.toggle('hidden');
@@ -154,7 +199,7 @@
                 document.getElementById('mainConsole').classList.remove('hidden');
                 initEngine();
             } else {
-                alert("Account pending approval. @bcu.ac.uk emails are auto-approved.");
+                alert("Pending approval. @bcu.ac.uk is auto-approved.");
                 auth.signOut();
             }
         } else {
@@ -207,10 +252,7 @@
             });
             const d = await resp.json();
             return JSON.parse(d.choices[0].message.content);
-        } catch (e) { 
-            console.error("Groq Proxy Error:", e);
-            return null; 
-        }
+        } catch (e) { return null; }
     }
 
     async function fetchGeminiAdvice(model) {
@@ -225,12 +267,13 @@
             const d = await resp.json();
             adviceBox.innerHTML = d.candidates[0].content.parts[0].text;
             badge.classList.remove("hidden");
-        } catch (e) { 
-            console.warn("Gemini Proxy Failed"); 
-        }
+        } catch (e) { console.warn("Gemini Proxy Failed"); }
     }
 
     function displayResults(data, source) {
+        currentModelName = `${data.brand} ${data.model}`;
+        currentThrowRatio = data.throw_ratio || "";
+
         document.getElementById("statusIndicator").classList.add("invisible");
         document.getElementById("emptyState").classList.add("hidden");
         document.getElementById("resultContainer").classList.remove("hidden");
@@ -240,7 +283,8 @@
         let portDisplay = data.ports || "N/A";
         if (typeof portDisplay === 'object') portDisplay = Object.values(portDisplay).join(", ");
 
-        // RESPONSIVE DATA DISPLAY: Changed grid and text sizes
+        const isProj = (data.category || "").toLowerCase().includes("projector") || (data.lamp_model && data.lamp_model !== "N/A");
+
         document.getElementById("specContent").innerHTML = `
             <div class="space-y-6 md:y-8">
                 <div class="flex flex-col md:flex-row justify-between items-start border-b border-slate-800 pb-6 gap-4">
@@ -251,6 +295,7 @@
                     <span class="text-[9px] md:text-[10px] font-bold text-white uppercase border-2 border-slate-700 px-3 md:px-4 py-1.5 md:py-2 rounded-xl">${data.category}</span>
                 </div>
                 <p class="text-base md:text-lg text-slate-400 leading-relaxed font-medium">${data.description || "Hardware profile verified."}</p>
+                
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                     <div class="bg-slate-900/50 p-4 md:p-6 rounded-2xl border border-slate-800 flex justify-between items-center">
                         <span class="text-[10px] md:text-[12px] text-slate-500 font-black uppercase tracking-widest">Luminance</span>
@@ -261,6 +306,34 @@
                         <span class="text-xl md:text-2xl font-bold text-white data-font">${data.resolution || "N/A"}</span>
                     </div>
                 </div>
+
+                ${isProj ? `
+                <div class="space-y-3 border-l-2 border-indigo-500/30 pl-4 py-1">
+                    <p class="text-[9px] font-black text-indigo-500/60 uppercase tracking-widest">Maintenance & Optics</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="p-3 bg-indigo-500/5 border border-indigo-500/20 rounded-lg flex justify-between items-center">
+                            <span class="text-[10px] text-indigo-400 font-bold uppercase">Lamp Life</span>
+                            <span class="text-sm font-bold text-white data-font">${data.lamp_life || "N/A"}</span>
+                        </div>
+                        <div class="p-3 bg-indigo-500/5 border border-indigo-500/20 rounded-lg flex justify-between items-center">
+                            <span class="text-[10px] text-indigo-400 font-bold uppercase">Filter Model</span>
+                            <span class="text-sm font-bold text-white data-font">${data.filter_model || "N/A"}</span>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-slate-900/80 rounded-lg border border-slate-800 flex justify-between items-center">
+                        <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Lamp Model</span>
+                        <span class="text-sm font-medium text-indigo-100 data-font">${data.lamp_model || "N/A"}</span>
+                    </div>
+                    ${currentThrowRatio && currentThrowRatio !== "N/A" ? `
+                    <div class="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg flex flex-col sm:flex-row items-center gap-4">
+                        <div class="flex-1 w-full">
+                            <p class="text-[11px] text-emerald-500 font-black uppercase mb-1">Optic Calculator (${currentThrowRatio})</p>
+                            <input type="number" step="0.1" placeholder="Distance (m)" class="w-full bg-slate-950 border border-slate-800 text-white p-2 rounded text-xs outline-none focus:border-emerald-500" oninput="window.calc(this.value)">
+                        </div>
+                        <div id="lensResults" class="text-2xl font-black text-emerald-400 data-font">---" DIAG</div>
+                    </div>` : ''}
+                </div>` : ''}
+
                 <div class="p-4 bg-slate-900/80 rounded-lg border border-slate-800">
                     <span class="text-[8px] text-slate-500 font-bold uppercase block mb-1">Interface Ports</span>
                     <span class="text-[11px] md:text-xs font-medium text-indigo-100 data-font break-words">${portDisplay}</span>
