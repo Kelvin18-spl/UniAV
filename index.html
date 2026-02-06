@@ -77,11 +77,12 @@
         <div class="space-y-6">
             <div class="glass-panel p-6 rounded-2xl border-l-4 border-indigo-500 bg-slate-900/20">
                 <h4 class="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-3">Diagnostic Advisor</h4>
-                <div id="aiAdvice" class="text-xs leading-relaxed opacity-70 italic font-medium mb-4"></div>
+                <div id="aiAdvice" class="text-xs leading-relaxed opacity-70 italic font-medium mb-6"></div>
                 
-                <div class="pt-4 border-t border-slate-800 flex flex-col gap-2">
-                    <div id="sourceBadge" class="px-3 py-1 rounded text-[8px] font-black uppercase tracking-widest text-center"></div>
-                    <div id="geminiBadge" class="hidden px-3 py-1 rounded text-[8px] font-black uppercase text-white tracking-widest bg-fuchsia-600 text-center">Gemini Analysis Active</div>
+                <div class="pt-4 border-t border-slate-800 flex flex-col gap-3">
+                    <p class="text-[8px] font-bold text-slate-600 uppercase tracking-widest">Source Authenticity</p>
+                    <div id="sourceBadge" class="px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest text-center border border-slate-700"></div>
+                    <div id="geminiBadge" class="hidden px-3 py-1.5 rounded-lg text-[8px] font-black uppercase text-white tracking-widest bg-fuchsia-600/20 text-fuchsia-400 border border-fuchsia-500/40 text-center">Gemini Analysis Active</div>
                 </div>
             </div>
 
@@ -144,7 +145,7 @@
     window.copyCorrection = () => {
         const val = document.getElementById('correctionInput').value;
         navigator.clipboard.writeText(`Correction for ${currentModelName}: ${val}`);
-        alert("Copied.");
+        alert("Copied to clipboard.");
     };
 
     window.sendDispatch = () => {
@@ -277,10 +278,10 @@
         document.getElementById("emptyState").classList.add("hidden");
         document.getElementById("resultContainer").classList.remove("hidden");
         
-        // SOURCE BADGE FIX
+        // SOURCE BADGE UPDATE
         const badge = document.getElementById("sourceBadge");
-        badge.innerText = source;
-        badge.className = `px-3 py-1 rounded text-[8px] font-black uppercase tracking-widest text-white ${source === 'DB_LOCAL' ? 'bg-slate-700' : 'bg-indigo-600'}`;
+        badge.innerText = source === "DB_LOCAL" ? "Internal DB Verified" : "External AI Synthesis";
+        badge.className = `px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border ${source === 'DB_LOCAL' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/5' : 'text-indigo-400 border-indigo-500/30 bg-indigo-500/5'}`;
         
         let portDisplay = data.ports || "N/A";
         if (typeof portDisplay === 'object') portDisplay = Object.values(portDisplay).join(", ");
@@ -341,7 +342,6 @@
                 </div>
             </div>`;
         
-        // Ensure advice box only shows data.notes
         document.getElementById("aiAdvice").innerHTML = data.notes || "Professional deployment recommended.";
     }
 
