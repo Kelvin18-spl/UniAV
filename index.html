@@ -73,15 +73,18 @@
     <div id="resultContainer" class="hidden">
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 md:gap-8">
         <div id="specContent" class="lg:col-span-3 glass-panel rounded-3xl p-6 md:p-10 border-t border-indigo-500/30 shadow-2xl"></div>
+        
         <div class="space-y-6">
             <div class="glass-panel p-6 rounded-2xl border-l-4 border-indigo-500 bg-slate-900/20">
                 <h4 class="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-3">Diagnostic Advisor</h4>
-                <div id="aiAdvice" class="text-xs leading-relaxed opacity-70 italic font-medium"></div>
-                <div class="mt-4 flex flex-col gap-2">
-                    <span id="sourceBadge" class="px-3 py-1 rounded text-[8px] font-black uppercase text-white tracking-widest inline-block text-center"></span>
-                    <span id="geminiBadge" class="hidden px-3 py-1 rounded text-[8px] font-black uppercase text-white tracking-widest bg-fuchsia-600 text-center">Gemini Analysis Active</span>
+                <div id="aiAdvice" class="text-xs leading-relaxed opacity-70 italic font-medium mb-4"></div>
+                
+                <div class="pt-4 border-t border-slate-800 flex flex-col gap-2">
+                    <div id="sourceBadge" class="px-3 py-1 rounded text-[8px] font-black uppercase tracking-widest text-center"></div>
+                    <div id="geminiBadge" class="hidden px-3 py-1 rounded text-[8px] font-black uppercase text-white tracking-widest bg-fuchsia-600 text-center">Gemini Analysis Active</div>
                 </div>
             </div>
+
             <button onclick="toggleModal(true)" class="w-full py-3 border border-red-500/30 text-red-400 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500/10 transition-all">
                 <i class="fas fa-exclamation-triangle mr-2"></i> Report Data Mismatch
             </button>
@@ -112,7 +115,6 @@
   </div>
 
   <script>
-    // --- FIREBASE & GLOBALS ---
     const firebaseConfig = {
         apiKey: "AIzaSyC3SkQPM47ei4wzSzqLr1H2-huAAgurQK4",
         authDomain: "av-info-finder.firebaseapp.com",
@@ -133,7 +135,6 @@
     let searchTimeout;
     let isLoginMode = true;
 
-    // --- MODAL & LENS LOGIC ---
     window.toggleModal = (show) => {
         const modal = document.getElementById('calibrationModal');
         modal.classList.toggle('hidden', !show);
@@ -143,7 +144,7 @@
     window.copyCorrection = () => {
         const val = document.getElementById('correctionInput').value;
         navigator.clipboard.writeText(`Correction for ${currentModelName}: ${val}`);
-        alert("Data copied to clipboard.");
+        alert("Copied.");
     };
 
     window.sendDispatch = () => {
@@ -158,9 +159,8 @@
         const rMatch = currentThrowRatio.match(/(\d+\.?\d*)/);
         if (!rMatch || !dist) return;
         res.innerHTML = `${Math.round((parseFloat(dist) / parseFloat(rMatch[0])) * 1.15 * 39.37)}" DIAG`;
-    }
+    };
 
-    // --- AUTH ---
     function toggleAuthMode() {
         isLoginMode = !isLoginMode;
         document.getElementById('registerFields').classList.toggle('hidden');
@@ -181,9 +181,7 @@
                 const org = document.getElementById('regOrg').value;
                 const userCredential = await auth.createUserWithEmailAndPassword(email, pass);
                 const isAutoApproved = email.toLowerCase().endsWith('@bcu.ac.uk');
-                await db.collection('users').doc(userCredential.user.uid).set({
-                    name, org, email, approved: isAutoApproved 
-                });
+                await db.collection('users').doc(userCredential.user.uid).set({ name, org, email, approved: isAutoApproved });
             }
         } catch (error) {
             msg.innerText = error.message;
@@ -199,7 +197,7 @@
                 document.getElementById('mainConsole').classList.remove('hidden');
                 initEngine();
             } else {
-                alert("Pending approval. @bcu.ac.uk is auto-approved.");
+                alert("Approval pending.");
                 auth.signOut();
             }
         } else {
@@ -229,6 +227,7 @@
         status.classList.remove("invisible");
         const cleanQuery = query.toLowerCase().replace(/[\s\-]/g, "");
         let match = projectorData.find(p => (p.brand + (p.model || "")).toLowerCase().replace(/[\s\-]/g, "").includes(cleanQuery));
+        
         if (match) { 
             displayResults(match, "DB_LOCAL"); 
         } else {
@@ -277,8 +276,11 @@
         document.getElementById("statusIndicator").classList.add("invisible");
         document.getElementById("emptyState").classList.add("hidden");
         document.getElementById("resultContainer").classList.remove("hidden");
-        document.getElementById("sourceBadge").innerText = source;
-        document.getElementById("sourceBadge").className = `px-3 py-1 rounded text-[8px] font-black tracking-widest text-white ${source === 'DB_LOCAL' ? 'bg-slate-700' : 'bg-indigo-600'}`;
+        
+        // SOURCE BADGE FIX
+        const badge = document.getElementById("sourceBadge");
+        badge.innerText = source;
+        badge.className = `px-3 py-1 rounded text-[8px] font-black uppercase tracking-widest text-white ${source === 'DB_LOCAL' ? 'bg-slate-700' : 'bg-indigo-600'}`;
         
         let portDisplay = data.ports || "N/A";
         if (typeof portDisplay === 'object') portDisplay = Object.values(portDisplay).join(", ");
@@ -295,7 +297,6 @@
                     <span class="text-[9px] md:text-[10px] font-bold text-white uppercase border-2 border-slate-700 px-3 md:px-4 py-1.5 md:py-2 rounded-xl">${data.category}</span>
                 </div>
                 <p class="text-base md:text-lg text-slate-400 leading-relaxed font-medium">${data.description || "Hardware profile verified."}</p>
-                
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                     <div class="bg-slate-900/50 p-4 md:p-6 rounded-2xl border border-slate-800 flex justify-between items-center">
                         <span class="text-[10px] md:text-[12px] text-slate-500 font-black uppercase tracking-widest">Luminance</span>
@@ -339,6 +340,8 @@
                     <span class="text-[11px] md:text-xs font-medium text-indigo-100 data-font break-words">${portDisplay}</span>
                 </div>
             </div>`;
+        
+        // Ensure advice box only shows data.notes
         document.getElementById("aiAdvice").innerHTML = data.notes || "Professional deployment recommended.";
     }
 
